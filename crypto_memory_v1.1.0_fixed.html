@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crypto Memory - Jogo de Criptomoedas (v0.9 Dr Menegaz)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #050814;
+      --bg-panel: #0b1022;
+      --card-back: #11172e;
+      --card-front: #0f172a;
+      --accent: #38bdf8;
+      --accent-2: #a855f7;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --danger: #f97373;
+      --radius-lg: 16px;
+      --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.9rem;
+      letter-spacing: 0.04em;
+      background: linear-gradient(120deg, #38bdf8, #a855f7, #22c55e);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(8, 47, 73, 0.8);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(8, 47, 73, 0.8);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(8, 47, 73, 0.7);
+    }
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: none;
+      padding-inline: 10px;
+      font-size: 0.85rem;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: 16px;
+    }
+
+    .board-section {
+      background: radial-gradient(circle at top left, #111827, #020617 60%);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .stats > div {
+      background: rgba(15, 23, 42, 0.85);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .status-message {
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+
+    .status-message.error {
+      color: var(--danger);
+    }
+
+    .game-board {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding-top: 4px;
+    }
+
+    /* Cartas */
+    .card {
+      position: relative;
+      width: 100%;
+      padding-top: 130%;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform 0.35s ease;
+      border-radius: 14px;
+    }
+
+    .card.flipped .card-inner,
+    .card.matched .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 14px;
+    }
+
+    .card-back {
+      background: radial-gradient(circle at 20% 0, #1f2937, #020617 60%);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.9);
+    }
+
+    .card-back-symbol {
+      font-size: 1.2rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .card-back-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .card-back-rocket {
+      margin-top: 4px;
+      font-size: 1.2rem;
+      filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.9));
+    }
+
+    .card-front {
+      transform: rotateY(180deg);
+      background: radial-gradient(circle at top, #020617, #020617 65%, #111827 100%);
+      border: 1px solid rgba(148, 163, 184, 0.85);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.95);
+    }
+
+    .card-header {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      text-align: center;
+      margin-bottom: 2px;
+    }
+
+    .card-title {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .card-symbol {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .card-price {
+      margin-top: 2px;
+      font-size: 0.72rem;
+      color: var(--accent);
+      text-align: center;
+    }
+
+    .card-logo-big {
+      margin-top: 4px;
+      width: 54px;
+      height: 54px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+    }
+
+    .card-logo-big img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .card-footer {
+      margin-top: auto;
+      font-size: 0.62rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .card-tag {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card-chain {
+      font-size: 0.6rem;
+      color: rgba(148, 163, 184, 0.9);
+    }
+
+    /* Painel lateral */
+    .info-panel {
+      background: linear-gradient(145deg, #020617, #020617 40%, #111827 100%);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .info-panel h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .coin-info {
+      margin-top: 6px;
+      padding: 10px;
+      border-radius: 12px;
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.09), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .coin-info h3 {
+      margin: 0 0 4px;
+      font-size: 0.9rem;
+      color: var(--accent-2);
+    }
+
+    .info-text {
+      margin: 4px 0;
+      font-size: 0.78rem;
+      color: var(--text);
+    }
+
+    .info-text-en {
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .footer {
+      margin-top: auto;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .brand {
+      margin-top: 4px;
+      font-size: 0.76rem;
+      color: rgba(56, 189, 248, 0.8);
+      font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+      .info-panel {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 10px;
+      }
+      .header {
+        flex-direction: column;
+      }
+      .game-board {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+  
+    .mode-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+    }
+
+    .mode-select {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 2px 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .quiz-block {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-quiz {
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    .btn-quiz:hover {
+      border-color: var(--accent);
+    }
+
+    .quiz-feedback {
+      margin-top: 4px;
+      font-size: 0.75rem;
+    }
+
+    .quiz-feedback.correct {
+      color: #4ade80;
+    }
+
+    .quiz-feedback.wrong {
+      color: var(--danger);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>Crypto Memory</h1>
+        <p class="subtitle">
+          Jogo de memória educativo para aprender sobre criptomoedas, símbolos e preços em tempo real.
+        </p>
+      </div>
+      <div class="controls">
+        <label class="mode-label">
+          Modo:
+          <select id="mode-select" class="mode-select">
+            <option value="kids">👶 Kids</option>
+            <option value="starter" selected>🎓 Starter</option>
+            <option value="pro">🧠 Pro</option>
+          </select>
+        </label>
+        <button id="restart-btn" class="btn">Reiniciar jogo</button>
+        <button id="sound-toggle" class="btn btn-secondary">🔊 Som</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="board-section">
+        <div class="stats">
+          <div>Jogadas: <span id="moves">0</span></div>
+          <div>Pares: <span id="pairs">0</span>/10</div>
+          <div>Melhor resultado: <span id="best">—</span> jogadas</div>
+        </div>
+
+        <div id="status-message" class="status-message">
+          Buscando preços em tempo real das moedas... ⏳
+        </div>
+
+        <div id="game-board" class="game-board"></div>
+      </section>
+
+      <aside class="info-panel">
+        <h2>Sobre a moeda</h2>
+        <p class="hint">
+          Encontre um par para ver a explicação educativa da criptomoeda.
+        </p>
+
+        <div id="coin-info" class="coin-info">
+          <h3>Educação cripto · Crypto education</h3>
+          <p class="info-text">
+            Quando você acertar um par, aparece aqui um resumo explicando o que a moeda faz,
+            o problema que resolve e por que é relevante.
+          </p>
+          <p class="info-text info-text-en">
+            When you match a pair, you'll see a short explanation here, so people
+            from anywhere in the world can also learn about that coin.
+          </p>
+        </div>
+
+        <footer class="footer">
+          <p>Use este jogo em aulas, workshops ou redes sociais.</p>
+          <p>Conteúdo educativo. Não é recomendação de investimento.</p>
+          <p class="brand">Powered by Dr. Menegaz - Dev 2025 · Crypto Memory v1.1.0</p>
+        </footer>
+      </aside>
+    </main>
+      <audio id="end-sound" src="Ayrton-Senna-Tema-da-vitoria_-.mp3" preload="auto"></audio>
+
+  </div>
+
+  <script>
+  // ===============================
+  // Configuração das moedas com logos via CDN (Binance icons)
+  // ===============================
+  const BINANCE_CDN =
+    "https://cdn.jsdelivr.net/gh/vadimmalykhin/binance-icons/crypto";
+
+  const coins = [
+    {
+      id: "bitcoin",
+      symbol: "BTC",
+      name: "Bitcoin",
+      apiId: "bitcoin",
+      icon: BINANCE_CDN + "/btc.svg",
+      category: "Reserva de valor digital",
+      launchYear: 2009,
+      type: "L1 · Dinheiro digital",
+      riskLevel: "Alta volatilidade; ativo de risco",
+      // descrições "normais" (Starter / Pro)
+      descPt:
+        "O Bitcoin é a primeira e maior criptomoeda, usada como reserva de valor digital descentralizada.",
+      descEn:
+        "Bitcoin is the first and largest cryptocurrency, used as a decentralized digital store of value.",
+      // modo Kids (super simples)
+      simpleDescPt:
+        "Bitcoin é um dinheiro da internet que não precisa de banco.",
+      simpleDescEn:
+        "Bitcoin is internet money that does not need a bank.",
+      funFactPt:
+        "A primeira compra famosa com Bitcoin foi duas pizzas pagas em 2010.",
+      funFactEn:
+        "The first famous Bitcoin purchase was two pizzas in 2010.",
+      riskNotePt:
+        "O preço pode subir e cair muito. Nunca use dinheiro de contas para comprar.",
+      riskNoteEn:
+        "The price can go up and down a lot. Never use money you need for bills.",
+      quiz: {
+        questionPt: "Bitcoin foi a primeira criptomoeda amplamente usada no mundo?",
+        optionsPt: ["Sim", "Não"],
+        correctIndex: 0,
+        explanationPt:
+          "Sim. Ele foi a primeira criptomoeda descentralizada de sucesso, lançada em 2009."
+      }
+    },
+    {
+      id: "ethereum",
+      symbol: "ETH",
+      name: "Ethereum",
+      apiId: "ethereum",
+      icon: BINANCE_CDN + "/eth.svg",
+      category: "Contratos inteligentes e dApps",
+      launchYear: 2015,
+      type: "L1 · Smart contracts",
+      riskLevel: "Alta volatilidade; depende do ecossistema DeFi/NFTs",
+      descPt:
+        "O Ethereum é uma plataforma de contratos inteligentes usada para DeFi, NFTs e aplicativos descentralizados.",
+      descEn:
+        "Ethereum is a smart contract platform used for DeFi, NFTs, and decentralized applications.",
+      simpleDescPt:
+        "Ethereum é como um grande computador da internet onde programas podem rodar sem um dono.",
+      simpleDescEn:
+        "Ethereum is like a big computer on the internet where programs can run without a single owner.",
+      funFactPt:
+        "Muitos jogos, NFTs e apps DeFi começaram primeiro no Ethereum.",
+      funFactEn:
+        "Many games, NFTs and DeFi apps started first on Ethereum.",
+      riskNotePt:
+        "As taxas e o preço podem mudar bastante. Use só o que você pode arriscar.",
+      riskNoteEn:
+        "Fees and price can change a lot. Only use what you can afford to risk.",
+      quiz: {
+        questionPt: "O que o Ethereum adiciona além de enviar e receber dinheiro?",
+        optionsPt: [
+          "Contratos inteligentes e aplicativos",
+          "Somente mineração",
+          "Apenas armazenamento de arquivos"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Ethereum permite contratos inteligentes e aplicativos descentralizados além de simples transferências."
+      }
+    },
+    {
+      id: "solana",
+      symbol: "SOL",
+      name: "Solana",
+      apiId: "solana",
+      icon: BINANCE_CDN + "/sol.svg",
+      category: "Alto desempenho · DeFi e NFTs",
+      launchYear: 2020,
+      type: "L1 · Alta performance",
+      riskLevel: "Muito volátil; tecnologia ainda jovem",
+      descPt:
+        "A Solana é uma blockchain de alta performance focada em transações rápidas e baratas.",
+      descEn:
+        "Solana is a high-performance blockchain focused on fast and low-cost transactions.",
+      simpleDescPt:
+        "Solana é uma rede muito rápida para mandar e receber tokens quase em tempo real.",
+      simpleDescEn:
+        "Solana is a very fast network to send and receive tokens almost in real time.",
+      funFactPt:
+        "Jogos, NFTs e DEXs de alta velocidade gostam de usar Solana.",
+      funFactEn:
+        "High-speed games, NFTs and DEXes often choose Solana.",
+      riskNotePt:
+        "Redes muito rápidas podem ter paradas técnicas e riscos maiores no início.",
+      riskNoteEn:
+        "Very fast networks can face outages and higher technical risks early on.",
+      quiz: {
+        questionPt: "Qual é o foco principal da Solana?",
+        optionsPt: [
+          "Transações rápidas e baratas",
+          "Apenas mineração de Bitcoin",
+          "Só guardar fotos"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "A Solana foi criada para ter transações rápidas e com taxas baixas."
+      }
+    },
+    {
+      id: "xrp",
+      symbol: "XRP",
+      name: "XRP",
+      apiId: "ripple",
+      icon: BINANCE_CDN + "/xrp.svg",
+      category: "Pagamentos internacionais",
+      launchYear: 2012,
+      type: "Ativo digital focado em remessas",
+      riskLevel: "Risco regulatório + volatilidade",
+      descPt:
+        "O XRP é um ativo digital ligado a pagamentos internacionais rápidos e de baixo custo.",
+      descEn:
+        "XRP is a digital asset used for fast and low-cost cross-border payments.",
+      simpleDescPt:
+        "XRP é usado para mandar dinheiro rápido entre países.",
+      simpleDescEn:
+        "XRP is used to send money quickly between countries.",
+      funFactPt:
+        "XRP já foi usado em testes de bancos e empresas para remessas internacionais.",
+      funFactEn:
+        "XRP has been tested by banks and companies for cross-border payments.",
+      riskNotePt:
+        "Processos regulatórios podem afetar muito o preço do ativo.",
+      riskNoteEn:
+        "Regulatory cases can strongly affect the asset’s price.",
+      quiz: {
+        questionPt: "XRP é mais lembrado por qual uso?",
+        optionsPt: [
+          "Pagamentos internacionais rápidos",
+          "Jogos on-line",
+          "Somente NFTs"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "XRP ficou conhecido pelos testes em pagamentos internacionais rápidos e baratos."
+      }
+    },
+    {
+      id: "cardano",
+      symbol: "ADA",
+      name: "Cardano",
+      apiId: "cardano",
+      icon: BINANCE_CDN + "/ada.svg",
+      category: "Pesquisa acadêmica e contratos inteligentes",
+      launchYear: 2017,
+      type: "L1 · Proof of Stake",
+      riskLevel: "Ativo de risco; evolução gradual",
+      descPt:
+        "A Cardano é uma blockchain com foco em pesquisa acadêmica e escalabilidade sustentável.",
+      descEn:
+        "Cardano is a blockchain focused on academic research and sustainable scalability.",
+      simpleDescPt:
+        "Cardano é uma rede que tenta crescer com base em muita pesquisa e testes.",
+      simpleDescEn:
+        "Cardano is a network that tries to grow based on lots of research and testing.",
+      funFactPt:
+        "O criador da Cardano também foi um dos cofundadores do Ethereum.",
+      funFactEn:
+        "Cardano’s founder was also a co-founder of Ethereum.",
+      riskNotePt:
+        "Desenvolvimento mais lento pode frustrar quem espera resultados rápidos.",
+      riskNoteEn:
+        "Slower development can frustrate people expecting fast results.",
+      quiz: {
+        questionPt: "Qual é um dos diferenciais da Cardano?",
+        optionsPt: [
+          "Foco em pesquisa e revisão científica",
+          "Ser a primeira cripto da história",
+          "Só funciona off-line"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Cardano enfatiza muita pesquisa acadêmica e revisão antes de colocar mudanças em produção."
+      }
+    },
+    {
+      id: "avalanche",
+      symbol: "AVAX",
+      name: "Avalanche",
+      apiId: "avalanche-2",
+      icon: BINANCE_CDN + "/avax.svg",
+      category: "Plataforma para redes customizadas",
+      launchYear: 2020,
+      type: "L1 · Subnets",
+      riskLevel: "Tecnologia nova, alta volatilidade",
+      descPt:
+        "A Avalanche é uma plataforma rápida para criação de blockchains e aplicativos descentralizados.",
+      descEn:
+        "Avalanche is a fast platform for building blockchains and decentralized applications.",
+      simpleDescPt:
+        "Avalanche permite criar várias redes de blockchain rápidas dentro de um mesmo ecossistema.",
+      simpleDescEn:
+        "Avalanche lets people create many fast blockchains inside one ecosystem.",
+      funFactPt:
+        "A ideia de subnets permite que projetos criem sua própria rede dentro da Avalanche.",
+      funFactEn:
+        "With subnets, projects can launch their own networks inside Avalanche.",
+      riskNotePt:
+        "Novas arquiteturas podem ter riscos técnicos e de adoção.",
+      riskNoteEn:
+        "New architectures can face technical and adoption risks.",
+      quiz: {
+        questionPt: "O que são “subnets” na Avalanche?",
+        optionsPt: [
+          "Redes customizadas dentro da Avalanche",
+          "Aplicativos de música",
+          "Carteiras físicas"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Subnets são redes personalizadas que rodam dentro da infraestrutura da Avalanche."
+      }
+    },
+    {
+      id: "chainlink",
+      symbol: "LINK",
+      name: "Chainlink",
+      apiId: "chainlink",
+      icon: BINANCE_CDN + "/link.svg",
+      category: "Oráculos · Dados do mundo real",
+      launchYear: 2017,
+      type: "Rede de oráculos",
+      riskLevel: "Depende do uso por contratos inteligentes",
+      descPt:
+        "A Chainlink conecta contratos inteligentes a dados do mundo real por meio de oráculos.",
+      descEn:
+        "Chainlink connects smart contracts with real-world data via decentralized oracles.",
+      simpleDescPt:
+        "Chainlink ajuda blockchains a enxergarem coisas do mundo real, como preços e eventos.",
+      simpleDescEn:
+        "Chainlink helps blockchains see real-world things like prices and events.",
+      funFactPt:
+        "Muitos protocolos DeFi usam oráculos de preço da Chainlink.",
+      funFactEn:
+        "Many DeFi protocols use Chainlink price oracles.",
+      riskNotePt:
+        "Se oráculos forem mal utilizados, podem causar problemas em DeFi.",
+      riskNoteEn:
+        "If oracles are misused, they can cause issues in DeFi protocols.",
+      quiz: {
+        questionPt: "Para que servem os oráculos da Chainlink?",
+        optionsPt: [
+          "Levar dados do mundo real para contratos inteligentes",
+          "Criar novos tokens meme",
+          "Guardar fotos em nuvem"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Oráculos entregam informações do mundo real (como preços) para contratos inteligentes."
+      }
+    },
+    {
+      id: "polygon",
+      symbol: "MATIC",
+      name: "Polygon",
+      apiId: "polygon-ecosystem-token",
+      icon: BINANCE_CDN + "/matic.svg",
+      category: "Escalabilidade · Layer 2",
+      launchYear: 2017,
+      type: "Camada 2 · Ethereum",
+      riskLevel: "Depende do ecossistema Ethereum e da concorrência",
+      descPt:
+        "O Polygon é uma solução de camada 2 que torna o Ethereum mais rápido e barato.",
+      descEn:
+        "Polygon is a layer-2 scaling solution that makes Ethereum faster and cheaper.",
+      simpleDescPt:
+        "Polygon ajuda o Ethereum a ficar mais rápido e mais barato para usar.",
+      simpleDescEn:
+        "Polygon helps Ethereum become faster and cheaper to use.",
+      funFactPt:
+        "Muitos jogos e apps migraram para Polygon para pagar menos taxas.",
+      funFactEn:
+        "Many games and apps moved to Polygon to pay lower fees.",
+      riskNotePt:
+        "Soluções de camada 2 competem entre si; nada é garantido.",
+      riskNoteEn:
+        "Layer-2 solutions compete with each other; nothing is guaranteed.",
+      quiz: {
+        questionPt: "Polygon é conhecido por quê?",
+        optionsPt: [
+          "Ajudar a escalar o Ethereum",
+          "Ser um banco físico",
+          "Criar hardware de mineração"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Polygon é uma solução de escalabilidade que ajuda o Ethereum a lidar com mais transações."
+      }
+    },
+    {
+      id: "dogecoin",
+      symbol: "DOGE",
+      name: "Dogecoin",
+      apiId: "dogecoin",
+      icon: BINANCE_CDN + "/doge.svg",
+      category: "Meme coin · Comunidade",
+      launchYear: 2013,
+      type: "Meme coin",
+      riskLevel: "Risco muito alto; preço guiado por humor e hype",
+      descPt:
+        "Dogecoin começou como meme, mas virou uma comunidade ativa e meio de pagamento.",
+      descEn:
+        "Dogecoin started as a meme but became an active community and medium of exchange.",
+      simpleDescPt:
+        "Dogecoin é uma moeda de brincadeira que virou famosa por causa da internet.",
+      simpleDescEn:
+        "Dogecoin is a joke coin that became famous because of the internet.",
+      funFactPt:
+        "O cachorro Shiba Inu do meme virou o símbolo da Dogecoin.",
+      funFactEn:
+        "The Shiba Inu meme dog became Dogecoin’s symbol.",
+      riskNotePt:
+        "Pode subir e cair muito rápido; é importante reforçar o caráter de brincadeira.",
+      riskNoteEn:
+        "It can go up and down very fast; it’s important to stress its joke/hype nature.",
+      quiz: {
+        questionPt: "Dogecoin é famosa principalmente porque:",
+        optionsPt: [
+          "Nasceu como meme divertido",
+          "É a moeda oficial de um país",
+          "Foi criada por um banco central"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Dogecoin começou como uma piada e ficou famosa por causa dos memes e da comunidade."
+      }
+    },
+    {
+      id: "litecoin",
+      symbol: "LTC",
+      name: "Litecoin",
+      apiId: "litecoin",
+      icon: BINANCE_CDN + "/ltc.svg",
+      category: "Pagamentos rápidos",
+      launchYear: 2011,
+      type: "L1 · UTXO",
+      riskLevel: "Volatilidade alta; concorrência com outras redes de pagamento",
+      descPt:
+        "O Litecoin é uma “versão leve” do Bitcoin com transações mais rápidas e taxas menores.",
+      descEn:
+        "Litecoin is a “lighter” version of Bitcoin with faster and cheaper transactions.",
+      simpleDescPt:
+        "Litecoin é parecido com o Bitcoin, mas feito para ser mais rápido e barato.",
+      simpleDescEn:
+        "Litecoin is similar to Bitcoin but designed to be faster and cheaper.",
+      funFactPt:
+        "Litecoin é uma das criptos mais antigas ainda em uso.",
+      funFactEn:
+        "Litecoin is one of the oldest cryptocurrencies still in use.",
+      riskNotePt:
+        "Compete com várias outras redes de pagamento cripto.",
+      riskNoteEn:
+        "It competes with many other crypto payment networks.",
+      quiz: {
+        questionPt: "Qual a ideia principal do Litecoin?",
+        optionsPt: [
+          "Ser uma versão mais rápida e leve do Bitcoin",
+          "Substituir cartões de crédito em todos os países imediatamente",
+          "Ser usado só para NFTs"
+        ],
+        correctIndex: 0,
+        explanationPt:
+          "Litecoin foi criado como uma versão mais rápida e barata para pagamentos do que o Bitcoin."
+      }
+    }
+  ];
+
+  // ===============================
+  // Estado do jogo
+  // ===============================
+  let deck = [];
+  let firstCard = null;
+  let secondCard = null;
+  let lockBoard = false;
+  let moves = 0;
+  let pairsFound = 0;
+  let bestScore = null;
+  let prices = {};
+  let soundEnabled = true;
+  let currentMode = "starter";
+
+  const boardEl = document.getElementById("game-board");
+  const movesEl = document.getElementById("moves");
+  const pairsEl = document.getElementById("pairs");
+  const bestEl = document.getElementById("best");
+  const statusEl = document.getElementById("status-message");
+  const infoEl = document.getElementById("coin-info");
+  const restartBtn = document.getElementById("restart-btn");
+  const soundToggleBtn = document.getElementById("sound-toggle");
+  const endSoundEl = document.getElementById("end-sound");
+  const modeSelectEl = document.getElementById("mode-select");
+
+  // ===============================
+  // ÁUDIO FUTURISTA – Web Audio API + Tema da Vitória
+  // ===============================
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (Ctor) {
+        audioCtx = new Ctor();
+      }
+    }
+    return audioCtx;
+  }
+
+  async function playBeep({
+    freq = 800,
+    duration = 0.12,
+    type = "sine",
+    volume = 0.2
+  }) {
+    if (!soundEnabled) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch (e) {}
+    }
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = volume;
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  function playFlipSound() {
+    playBeep({ freq: 950, duration: 0.06, type: "triangle", volume: 0.25 });
+  }
+
+  function playMatchSound() {
+    playBeep({ freq: 600, duration: 0.07, type: "square", volume: 0.22 });
+    setTimeout(() => {
+      playBeep({ freq: 900, duration: 0.08, type: "square", volume: 0.22 });
+    }, 90);
+  }
+
+  function playWinSound() {
+    playBeep({ freq: 600, duration: 0.08, type: "sine", volume: 0.22 });
+    setTimeout(() => {
+      playBeep({ freq: 800, duration: 0.1, type: "sine", volume: 0.22 });
+    }, 120);
+    setTimeout(() => {
+      playBeep({ freq: 1000, duration: 0.14, type: "triangle", volume: 0.24 });
+    }, 260);
+  }
+
+  function playSennaClip() {
+    if (!soundEnabled) return;
+    if (!endSoundEl) return;
+    try {
+      endSoundEl.currentTime = 0;
+      endSoundEl.play();
+      setTimeout(() => {
+        endSoundEl.pause();
+        endSoundEl.currentTime = 0;
+      }, 7000);
+    } catch (e) {
+      console.error("Erro ao tocar Tema da Vitória:", e);
+    }
+  }
+
+  function updateSoundButton() {
+    soundToggleBtn.textContent = soundEnabled ? "🔊 Som" : "🔇 Som";
+  }
+
+  // ===============================
+  // Util
+  // ===============================
+  function shuffle(array) {
+    const arr = array.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // ===============================
+  // Deck & render
+  // ===============================
+  function createDeck() {
+    const doubled = coins.flatMap((c) => [c, c]);
+    deck = shuffle(doubled);
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = "";
+    deck.forEach((coin, index) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.index = index;
+
+      const inner = document.createElement("div");
+      inner.className = "card-inner";
+
+      const back = document.createElement("div");
+      back.className = "card-face card-back";
+      back.innerHTML = `
+        <div class="card-back-symbol">CRYPTO</div>
+        <div class="card-back-sub">MEMORY</div>
+        <div class="card-back-rocket">🚀</div>
+      `;
+
+      const front = document.createElement("div");
+      front.className = "card-face card-front";
+
+      front.innerHTML = `
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-name">${coin.name}</div>
+            <div class="card-symbol">${coin.symbol}</div>
+          </div>
+        </div>
+        <div class="card-price" data-api-id="${coin.apiId}">
+          Preço: —
+        </div>
+        <div class="card-logo-big">
+          <img src="${coin.icon}" alt="Logo ${coin.name}" />
+        </div>
+        <div class="card-footer">
+          <span class="card-tag">CRYPTO·EDU</span>
+          <span class="card-chain">${coin.symbol}</span>
+        </div>
+      `;
+
+      inner.appendChild(back);
+      inner.appendChild(front);
+      card.appendChild(inner);
+
+      card.addEventListener("click", onCardClick);
+      boardEl.appendChild(card);
+    });
+
+    if (Object.keys(prices).length > 0) {
+      applyPricesToCards();
+    }
+  }
+
+  function resetGame() {
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    moves = 0;
+    pairsFound = 0;
+    movesEl.textContent = "0";
+    pairsEl.textContent = "0";
+    statusEl.textContent = "Buscando preços em tempo real das moedas... ⏳";
+    statusEl.classList.remove("error");
+
+    createDeck();
+    renderBoard();
+    fetchPrices();
+    updateInfoPanelInitial();
+  }
+
+  // ===============================
+  // API de preços (CoinGecko)
+  // ===============================
+  function fetchPrices() {
+    const ids = [...new Set(coins.map((c) => c.apiId))];
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=" +
+      encodeURIComponent(ids.join(",")) +
+      "&vs_currencies=usd";
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("Erro na API");
+        return res.json();
+      })
+      .then((data) => {
+        prices = data;
+        statusEl.textContent = "Preços carregados. Boa sorte! 🚀";
+        applyPricesToCards();
+      })
+      .catch(() => {
+        prices = {};
+        statusEl.textContent =
+          'Não foi possível carregar os preços em tempo real. As cartas mostrarão "Preço indisponível".';
+        statusEl.classList.add("error");
+        applyPricesToCards(true);
+      });
+  }
+
+  function applyPricesToCards(errorFallback = false) {
+    const els = document.querySelectorAll(".card-price");
+    els.forEach((el) => {
+      const apiId = el.getAttribute("data-api-id");
+      if (!errorFallback && prices[apiId] && prices[apiId].usd != null) {
+        const v = prices[apiId].usd;
+        el.textContent = "Preço: US$ " + v.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      } else {
+        el.textContent = "Preço: indisponível";
+      }
+    });
+  }
+
+  // ===============================
+  // Lógica do jogo
+  // ===============================
+  function onCardClick(e) {
+    const card = e.currentTarget;
+    if (lockBoard) return;
+    if (card.classList.contains("flipped") || card.classList.contains("matched")) {
+      return;
+    }
+
+    playFlipSound();
+    card.classList.add("flipped");
+
+    if (!firstCard) {
+      firstCard = card;
+      return;
+    }
+
+    secondCard = card;
+    lockBoard = true;
+    moves++;
+    movesEl.textContent = String(moves);
+
+    const firstIndex = Number(firstCard.dataset.index);
+    const secondIndex = Number(secondCard.dataset.index);
+    const firstCoin = deck[firstIndex];
+    const secondCoin = deck[secondIndex];
+
+    if (firstCoin.id === secondCoin.id) {
+      handleMatch(firstCoin);
+    } else {
+      handleMismatch();
+    }
+  }
+
+  function handleMatch(coinData) {
+    playMatchSound();
+
+    firstCard.classList.add("matched");
+    secondCard.classList.add("matched");
+
+    pairsFound++;
+    pairsEl.textContent = String(pairsFound);
+    updateInfoPanelMatch(coinData);
+
+    resetSelection();
+
+    if (pairsFound === 10) {
+      handleWin();
+    }
+  }
+
+  function handleMismatch() {
+    setTimeout(() => {
+      firstCard.classList.remove("flipped");
+      secondCard.classList.remove("flipped");
+      resetSelection();
+    }, 800);
+  }
+
+  function resetSelection() {
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+  }
+
+  // ===============================
+  // Fim de jogo & best score
+  // ===============================
+  const BEST_KEY = "cryptoMemoryBest_v110";
+
+  function handleWin() {
+    playWinSound();
+    playSennaClip();
+
+    statusEl.textContent =
+      "Parabéns! Você completou todos os pares em " + moves + " jogadas. 🧠🚀";
+
+    const stored = localStorage.getItem(BEST_KEY);
+    if (!stored || moves < Number(stored)) {
+      localStorage.setItem(BEST_KEY, String(moves));
+      bestScore = moves;
+      updateBestScoreDisplay();
+    }
+  }
+
+  function loadBestScore() {
+    const stored = localStorage.getItem(BEST_KEY);
+    if (stored) {
+      bestScore = Number(stored);
+    }
+    updateBestScoreDisplay();
+  }
+
+  function updateBestScoreDisplay() {
+    if (bestScore == null) {
+      bestEl.textContent = "—";
+    } else {
+      bestEl.textContent = String(bestScore);
+    }
+  }
+
+  // ===============================
+  // Painel educativo + modos + quiz
+  // ===============================
+  function modeLabels() {
+    if (currentMode === "kids") {
+      return {
+        label: "👶 Kids (6+)",
+        descPt:
+          "Explicações bem simples, com foco em exemplos e curiosidades. Ideal para crianças ou iniciantes totais.",
+        descEn:
+          "Very simple explanations with examples and fun facts. Great for kids and total beginners."
+      };
+    }
+    if (currentMode === "pro") {
+      return {
+        label: "🧠 Pro",
+        descPt:
+          "Mais detalhes sobre categoria, ano, tipo de rede e riscos. Bom para quem já conhece o básico.",
+        descEn:
+          "More detail about category, year, network type and risks. Good for people who already know the basics."
+      };
+    }
+    return {
+      label: "🎓 Starter",
+      descPt:
+        "Resumos curtos para entender o papel de cada cripto no ecossistema, com avisos simples de risco.",
+      descEn:
+        "Short summaries to understand each crypto’s role with simple risk notes."
+    };
+  }
+
+  function updateInfoPanelInitial() {
+    const { label, descPt, descEn } = modeLabels();
+    infoEl.innerHTML = `
+      <h3>Educação cripto · Crypto education</h3>
+      <p class="info-text"><strong>Modo atual:</strong> ${label}</p>
+      <p class="info-text">${descPt}</p>
+      <p class="info-text info-text-en">${descEn}</p>
+      <p class="info-text">
+        Encontre um par no tabuleiro para ver uma explicação sobre a moeda,
+        mais uma pergunta relâmpago para testar o que você aprendeu.
+      </p>
+    `;
+  }
+
+  function renderQuiz(coin) {
+    if (!coin.quiz) return;
+
+    const quizBlock = document.createElement("div");
+    quizBlock.className = "quiz-block";
+
+    quizBlock.innerHTML = `
+      <p class="info-text">
+        <strong>Pergunta relâmpago:</strong> ${coin.quiz.questionPt}
+      </p>
+      <div class="quiz-options">
+        ${coin.quiz.optionsPt
+          .map(
+            (opt, idx) =>
+              `<button class="btn-quiz" data-index="${idx}">${opt}</button>`
+          )
+          .join("")}
+      </div>
+      <p class="quiz-feedback"></p>
+    `;
+
+    infoEl.appendChild(quizBlock);
+
+    const buttons = quizBlock.querySelectorAll(".btn-quiz");
+    const feedbackEl = quizBlock.querySelector(".quiz-feedback");
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.index);
+        if (idx === coin.quiz.correctIndex) {
+          feedbackEl.textContent = "Acertou! " + coin.quiz.explanationPt;
+          feedbackEl.classList.remove("wrong");
+          feedbackEl.classList.add("correct");
+        } else {
+          feedbackEl.textContent = "Quase! " + coin.quiz.explanationPt;
+          feedbackEl.classList.remove("correct");
+          feedbackEl.classList.add("wrong");
+        }
+      });
+    });
+  }
+
+  function updateInfoPanelMatch(coin) {
+    let ptMain;
+    let enMain;
+    let extrasHtml = "";
+
+    if (currentMode === "kids") {
+      ptMain = `<strong>O que é?</strong> ${coin.simpleDescPt}`;
+      enMain = `<strong>What is it?</strong> ${coin.simpleDescEn}`;
+      extrasHtml = `
+        <p class="info-text"><strong>Curiosidade:</strong> ${coin.funFactPt}</p>
+        <p class="info-text"><strong>Cuidado:</strong> ${coin.riskNotePt}</p>
+      `;
+    } else if (currentMode === "pro") {
+      ptMain = `<strong>O que é?</strong> ${coin.descPt}`;
+      enMain = `<strong>What is it?</strong> ${coin.descEn}`;
+      extrasHtml = `
+        <p class="info-text"><strong>Categoria:</strong> ${coin.category}</p>
+        <p class="info-text"><strong>Ano de criação:</strong> ${coin.launchYear}</p>
+        <p class="info-text"><strong>Tipo:</strong> ${coin.type}</p>
+        <p class="info-text"><strong>Risco:</strong> ${coin.riskLevel}</p>
+        <p class="info-text"><strong>Cuidado:</strong> ${coin.riskNotePt}</p>
+      `;
+    } else {
+      ptMain = `<strong>Resumo:</strong> ${coin.descPt}`;
+      enMain = `<strong>Summary:</strong> ${coin.descEn}`;
+      extrasHtml = `
+        <p class="info-text"><strong>Categoria:</strong> ${coin.category}</p>
+        <p class="info-text"><strong>Curiosidade:</strong> ${coin.funFactPt}</p>
+        <p class="info-text"><strong>Cuidado:</strong> ${coin.riskNotePt}</p>
+      `;
+    }
+
+    infoEl.innerHTML = `
+      <h3>${coin.name} (${coin.symbol})</h3>
+      <p class="info-text">${ptMain}</p>
+      <p class="info-text info-text-en">${enMain}</p>
+      ${extrasHtml}
+    `;
+
+    renderQuiz(coin);
+  }
+
+  // ===============================
+  // Eventos
+  // ===============================
+  restartBtn.addEventListener("click", () => {
+    resetGame();
+  });
+
+  soundToggleBtn.addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    updateSoundButton();
+  });
+
+  if (modeSelectEl) {
+    modeSelectEl.addEventListener("change", () => {
+      currentMode = modeSelectEl.value || "starter";
+      updateInfoPanelInitial();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadBestScore();
+    updateSoundButton();
+    if (modeSelectEl) {
+      currentMode = modeSelectEl.value || "starter";
+    }
+    resetGame();
+  });
+  </script>
+</body>
+</html>
