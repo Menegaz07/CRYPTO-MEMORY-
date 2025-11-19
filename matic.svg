@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
+  <rect width="100%" height="100%" rx="64" ry="64" fill="#8247e5"/>
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle"
+        font-size="96" fill="#ffffff" font-family="Arial, sans-serif" font-weight="bold">
+    MATIC
+  </text>
+</svg>
