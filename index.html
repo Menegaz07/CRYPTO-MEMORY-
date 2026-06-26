@@ -1277,9 +1277,33 @@
     audioMasterGain.gain.value = soundEnabled ? masterVolume : 0;
     return audioMasterGain;
   }
+  // === Tema da Vitória roteado pelo Web Audio (necessário p/ controlar volume no iOS) ===
+  let endSoundGain = null;
+  let endSoundSourceConnected = false;
+  function setupEndSoundChain() {
+    const ctx = getAudioCtx();
+    if (!ctx || !endSoundEl) return null;
+    if (!endSoundSourceConnected) {
+      try {
+        const src = ctx.createMediaElementSource(endSoundEl);
+        endSoundGain = ctx.createGain();
+        src.connect(endSoundGain);
+        endSoundGain.connect(ctx.destination);
+        endSoundSourceConnected = true;
+        // No iOS o .volume do elemento é ignorado; deixamos em 1 e controlamos pelo GainNode.
+        endSoundEl.volume = 1;
+      } catch (e) {
+        endSoundGain = null; // fallback: usa o .volume do elemento (desktop)
+      }
+    }
+    if (endSoundGain) endSoundGain.gain.value = soundEnabled ? masterVolume : 0;
+    return endSoundGain;
+  }
   function applyMasterVolume() {
     if (audioMasterGain) audioMasterGain.gain.value = soundEnabled ? masterVolume : 0;
-    if (typeof endSoundEl !== "undefined" && endSoundEl) {
+    if (endSoundGain) {
+      endSoundGain.gain.value = soundEnabled ? masterVolume : 0;
+    } else if (typeof endSoundEl !== "undefined" && endSoundEl) {
       endSoundEl.volume = soundEnabled ? masterVolume : 0;
     }
   }
@@ -1487,7 +1511,17 @@ function playSennaClip() {
     }
     endSoundEl.pause();
     endSoundEl.currentTime = 0;
-    endSoundEl.volume = soundEnabled ? masterVolume : 0;
+
+    // iOS: controla volume pelo GainNode; desktop cai no fallback do .volume
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
+    const eg = setupEndSoundChain();
+    if (eg) {
+      eg.gain.value = soundEnabled ? masterVolume : 0;
+      endSoundEl.volume = 1;
+    } else {
+      endSoundEl.volume = soundEnabled ? masterVolume : 0;
+    }
 
     const playPromise = endSoundEl.play();
 
