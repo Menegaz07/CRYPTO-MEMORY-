@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>Crypto Memory - Jogo de Criptomoedas (v1.2.0 Dr Menegaz)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050814" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
     :root {
       --bg: #050814;
@@ -29,6 +33,9 @@
       background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
       color: var(--text);
       min-height: 100vh;
+      min-height: 100dvh; /* altura real em navegadores móveis (barra de endereço) */
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent; /* sem flash azul ao tocar */
     }
 
     .page {
@@ -157,6 +164,7 @@
       perspective: 1000px;
       cursor: pointer;
       transition: transform 0.18s ease;
+      touch-action: manipulation; /* evita zoom de toque-duplo no tabuleiro */
     }
 
     .card:focus-visible {
@@ -165,9 +173,11 @@
       border-radius: 16px;
     }
 
-    /* Leve elevação ao passar o mouse em cartas ainda jogáveis */
-    .card:not(.matched):not(.flipped):hover {
-      transform: translateY(-4px);
+    /* Leve elevação só em aparelhos com mouse (evita "hover travado" no toque) */
+    @media (hover: hover) and (pointer: fine) {
+      .card:not(.matched):not(.flipped):hover {
+        transform: translateY(-4px);
+      }
     }
 
     .card.matched {
@@ -387,21 +397,54 @@
       .main {
         grid-template-columns: 1fr;
       }
-      .info-panel {
-        order: -1;
-      }
+      /* No celular o TABULEIRO vem primeiro; o painel educativo fica abaixo */
+      .board-section { order: 0; }
+      .info-panel { order: 1; }
     }
 
     @media (max-width: 640px) {
       .page {
         padding: 10px;
+        /* respeita o notch / barras do iPhone */
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        gap: 12px;
       }
       .header {
         flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
       }
-      .game-board {
-        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+      h1 { font-size: 1.5rem; }
+      .subtitle { font-size: 0.82rem; }
+      /* Controles ocupam a largura e viram alvos de toque maiores */
+      .controls {
+        flex-wrap: wrap;
+        justify-content: stretch;
       }
+      .controls .btn,
+      .controls .mode-label {
+        flex: 1 1 auto;
+        min-height: 44px;
+        justify-content: center;
+        font-size: 0.95rem;
+      }
+      .board-section { padding: 10px; }
+      .game-board { gap: 8px; }
+      /* cartas um pouco menos altas para caber mais na tela */
+      .card { padding-top: 122%; }
+      .card-name { font-size: 0.72rem; }
+      .card-logo-big { width: 46px; height: 46px; }
+      .info-panel { padding: 12px; }
+    }
+
+    /* Telas bem estreitas: cartas ainda menores e textos compactos */
+    @media (max-width: 380px) {
+      .card-name { font-size: 0.66rem; }
+      .card-symbol, .card-price { font-size: 0.62rem; }
+      .card-logo-big { width: 40px; height: 40px; }
+      .card-footer { font-size: 0.56rem; }
     }
   
     .mode-label {
