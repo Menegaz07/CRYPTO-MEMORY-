@@ -1173,7 +1173,31 @@
   let prices = {};
   let prevPrices = {};
   let priceTimerId = null;
+  let priceRetryId = null;
+  let lastPricesAt = 0; // timestamp da última cotação válida (ms)
   const PRICE_REFRESH_MS = 30000; // atualiza a cotação a cada 30 segundos
+
+  // Cache dos últimos preços válidos em localStorage — evita "indisponível"
+  // quando o CoinGecko falha/limita (429) no primeiro carregamento.
+  function loadCachedPrices() {
+    try {
+      const raw = localStorage.getItem("cryptoMemoryPrices");
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      if (obj && obj.prices && typeof obj.prices === "object") {
+        prices = obj.prices;
+        lastPricesAt = obj.at || 0;
+      }
+    } catch (e) {}
+  }
+  function saveCachedPrices() {
+    try {
+      localStorage.setItem(
+        "cryptoMemoryPrices",
+        JSON.stringify({ prices: prices, at: lastPricesAt })
+      );
+    } catch (e) {}
+  }
   let soundEnabled = true;
   let masterVolume = 0.8; // 0.0 a 1.0
   let currentMode = "starter";
@@ -1694,6 +1718,8 @@ function updateSoundButton() {
 
     createDeck();
     renderBoard();
+    loadCachedPrices();   // mostra a última cotação salva enquanto a nova carrega
+    applyPricesToCards();
     fetchPrices();
     startPriceAutoUpdate();
     updateInfoPanelInitial();
@@ -1704,7 +1730,8 @@ function updateSoundButton() {
   // API de preços (CoinGecko)
   // ===============================
   // silent = true → atualização automática em segundo plano (não mexe no status do jogo)
-  function fetchPrices(silent = false) {
+  // attempt → contador de tentativas para o retry com backoff
+  function fetchPrices(silent = false, attempt = 0) {
     const ids = [...new Set(coins.map((c) => c.apiId))];
     const url =
       "https://api.coingecko.com/api/v3/simple/price?ids=" +
@@ -1713,12 +1740,18 @@ function updateSoundButton() {
 
     fetch(url, { cache: "no-store" })
       .then((res) => {
-        if (!res.ok) throw new Error("Erro na API");
+        if (!res.ok) throw new Error("Erro na API (" + res.status + ")");
         return res.json();
       })
       .then((data) => {
+        if (!data || typeof data !== "object" || !Object.keys(data).length) {
+          throw new Error("Resposta vazia");
+        }
+        if (priceRetryId) { clearTimeout(priceRetryId); priceRetryId = null; }
         prevPrices = prices;
         prices = data;
+        lastPricesAt = Date.now();
+        saveCachedPrices();
         if (!silent) {
           statusEl.textContent = "Preços carregados. Boa sorte! 🚀";
           statusEl.classList.remove("error");
@@ -1727,15 +1760,21 @@ function updateSoundButton() {
         updatePriceStatus(true);
       })
       .catch(() => {
-        // Numa falha silenciosa mantemos os últimos preços válidos na tela
-        if (!silent) {
-          prices = {};
-          statusEl.textContent =
-            'Não foi possível carregar os preços em tempo real. As cartas mostrarão "Preço indisponível".';
-          statusEl.classList.add("error");
-          applyPricesToCards(true);
-        }
+        // NÃO zera os preços: mantém a última cotação (memória ou cache) na tela.
+        const temCotacao = prices && Object.keys(prices).length > 0;
+        applyPricesToCards(!temCotacao);
         updatePriceStatus(false);
+        if (!silent && !temCotacao) {
+          statusEl.textContent =
+            'Não foi possível carregar os preços. Tentando novamente automaticamente...';
+          statusEl.classList.add("error");
+        }
+        // Retry com backoff: 2s, 4s, 8s, 16s, máx 30s (cobre rate-limit 429 transitório)
+        if (attempt < 5) {
+          const delay = Math.min(30000, 2000 * Math.pow(2, attempt));
+          if (priceRetryId) clearTimeout(priceRetryId);
+          priceRetryId = setTimeout(() => fetchPrices(silent, attempt + 1), delay);
+        }
       });
   }
 
@@ -1777,7 +1816,15 @@ function updateSoundButton() {
         hh + ":" + mm + ":" + ss;
     } else {
       priceStatusEl.classList.add("stale");
-      priceStatusEl.textContent = "⚠️ Sem conexão com a cotação — tentando novamente...";
+      if (lastPricesAt) {
+        const d = new Date(lastPricesAt);
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        priceStatusEl.textContent =
+          "⚠️ Última cotação às " + hh + ":" + mm + " — reconectando...";
+      } else {
+        priceStatusEl.textContent = "⚠️ Sem conexão com a cotação — tentando novamente...";
+      }
     }
   }
 
