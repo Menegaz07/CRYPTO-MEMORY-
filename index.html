@@ -528,6 +528,38 @@
       color: var(--danger);
     }
 
+    /* Indicador de preços ao vivo */
+    .price-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: #4ade80;
+      min-height: 16px;
+    }
+    .price-status.stale { color: var(--danger); }
+    .price-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: livePulse 1.6s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.8); }
+    }
+
+    /* Flash de variação de preço nas cartas */
+    .card-price { transition: color 0.4s ease; }
+    .card-price.flash-up { color: #4ade80 !important; }
+    .card-price.flash-down { color: #f87171 !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .price-status .dot { animation: none; }
+    }
+
     /* Destaque do cronômetro */
     .stat-time {
       color: var(--accent) !important;
@@ -605,6 +637,8 @@
         <div id="status-message" class="status-message">
           Buscando preços em tempo real das moedas... ⏳
         </div>
+
+        <div id="price-status" class="price-status"></div>
 
         <div id="game-board" class="game-board"></div>
       </section>
@@ -1128,6 +1162,9 @@
   let pairsFound = 0;
   let bestScore = null;
   let prices = {};
+  let prevPrices = {};
+  let priceTimerId = null;
+  const PRICE_REFRESH_MS = 30000; // atualiza a cotação a cada 30 segundos
   let soundEnabled = true;
   let currentMode = "starter";
 
@@ -1162,6 +1199,7 @@
   const timerEl = document.getElementById("timer");
   const bestEl = document.getElementById("best");
   const statusEl = document.getElementById("status-message");
+  const priceStatusEl = document.getElementById("price-status");
   const infoEl = document.getElementById("coin-info");
   const restartBtn = document.getElementById("restart-btn");
   const soundToggleBtn = document.getElementById("sound-toggle");
@@ -1451,6 +1489,7 @@ function updateSoundButton() {
     createDeck();
     renderBoard();
     fetchPrices();
+    startPriceAutoUpdate();
     updateInfoPanelInitial();
   }
 
@@ -1458,29 +1497,39 @@ function updateSoundButton() {
   // ===============================
   // API de preços (CoinGecko)
   // ===============================
-  function fetchPrices() {
+  // silent = true → atualização automática em segundo plano (não mexe no status do jogo)
+  function fetchPrices(silent = false) {
     const ids = [...new Set(coins.map((c) => c.apiId))];
     const url =
       "https://api.coingecko.com/api/v3/simple/price?ids=" +
       encodeURIComponent(ids.join(",")) +
       "&vs_currencies=usd";
 
-    fetch(url)
+    fetch(url, { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error("Erro na API");
         return res.json();
       })
       .then((data) => {
+        prevPrices = prices;
         prices = data;
-        statusEl.textContent = "Preços carregados. Boa sorte! 🚀";
+        if (!silent) {
+          statusEl.textContent = "Preços carregados. Boa sorte! 🚀";
+          statusEl.classList.remove("error");
+        }
         applyPricesToCards();
+        updatePriceStatus(true);
       })
       .catch(() => {
-        prices = {};
-        statusEl.textContent =
-          'Não foi possível carregar os preços em tempo real. As cartas mostrarão "Preço indisponível".';
-        statusEl.classList.add("error");
-        applyPricesToCards(true);
+        // Numa falha silenciosa mantemos os últimos preços válidos na tela
+        if (!silent) {
+          prices = {};
+          statusEl.textContent =
+            'Não foi possível carregar os preços em tempo real. As cartas mostrarão "Preço indisponível".';
+          statusEl.classList.add("error");
+          applyPricesToCards(true);
+        }
+        updatePriceStatus(false);
       });
   }
 
@@ -1494,10 +1543,42 @@ function updateSoundButton() {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
         });
+        // Pisca verde (subiu) ou vermelho (caiu) quando o preço muda
+        const old = prevPrices[apiId] && prevPrices[apiId].usd;
+        if (old != null && v !== old) {
+          const cls = v > old ? "flash-up" : "flash-down";
+          el.classList.remove("flash-up", "flash-down");
+          void el.offsetWidth; // reinicia a transição
+          el.classList.add(cls);
+          setTimeout(() => el.classList.remove(cls), 1500);
+        }
       } else {
         el.textContent = "Preço: indisponível";
       }
     });
+  }
+
+  function updatePriceStatus(ok) {
+    if (!priceStatusEl) return;
+    if (ok) {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      priceStatusEl.classList.remove("stale");
+      priceStatusEl.innerHTML =
+        '<span class="dot"></span> Preços ao vivo · atualizado às ' +
+        hh + ":" + mm + ":" + ss;
+    } else {
+      priceStatusEl.classList.add("stale");
+      priceStatusEl.textContent = "⚠️ Sem conexão com a cotação — tentando novamente...";
+    }
+  }
+
+  // Liga a atualização automática periódica dos preços
+  function startPriceAutoUpdate() {
+    if (priceTimerId) clearInterval(priceTimerId);
+    priceTimerId = setInterval(() => fetchPrices(true), PRICE_REFRESH_MS);
   }
 
   // ===============================
@@ -1784,6 +1865,20 @@ function updateSoundButton() {
 
   // Reajusta as colunas ao girar/redimensionar a tela (sem reembaralhar o jogo)
   window.addEventListener("resize", applyBoardColumns);
+
+  // Pausa a atualização de preços quando a aba está oculta (economiza chamadas à API)
+  // e atualiza na hora ao voltar para a aba.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (priceTimerId) {
+        clearInterval(priceTimerId);
+        priceTimerId = null;
+      }
+    } else {
+      fetchPrices(true);
+      startPriceAutoUpdate();
+    }
+  });
 
   
   soundToggleBtn.addEventListener("click", () => {
