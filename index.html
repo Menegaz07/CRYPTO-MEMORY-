@@ -1297,6 +1297,11 @@
     if (!soundEnabled || masterVolume <= 0) return 0;
     return Math.pow(masterVolume, 2.5);
   }
+  // Música da vitória toca um pouco mais baixa que os efeitos (90% do nível).
+  const END_SOUND_FACTOR = 0.9;
+  function endGainFor() {
+    return gainFor() * END_SOUND_FACTOR;
+  }
   let audioMasterGain = null;
   function getMasterGain() {
     const ctx = getAudioCtx();
@@ -1327,15 +1332,15 @@
         endSoundGain = null; // fallback: usa o .volume do elemento (desktop)
       }
     }
-    if (endSoundGain) endSoundGain.gain.value = gainFor();
+    if (endSoundGain) endSoundGain.gain.value = endGainFor();
     return endSoundGain;
   }
   function applyMasterVolume() {
     if (audioMasterGain) audioMasterGain.gain.value = gainFor();
     if (endSoundGain) {
-      endSoundGain.gain.value = gainFor();
+      endSoundGain.gain.value = endGainFor();
     } else if (typeof endSoundEl !== "undefined" && endSoundEl) {
-      endSoundEl.volume = gainFor();
+      endSoundEl.volume = endGainFor();
     }
   }
   function volumeIcon() {
@@ -1548,10 +1553,10 @@ function playSennaClip() {
     if (ctx && ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
     const eg = setupEndSoundChain();
     if (eg) {
-      eg.gain.value = gainFor();
+      eg.gain.value = endGainFor();
       endSoundEl.volume = 1;
     } else {
-      endSoundEl.volume = gainFor();
+      endSoundEl.volume = endGainFor();
     }
 
     const playPromise = endSoundEl.play();
