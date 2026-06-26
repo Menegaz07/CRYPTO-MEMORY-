@@ -1306,25 +1306,61 @@
     osc.stop(now + attack + rel + 0.03);
   }
 
-  // Clique moderno ao virar a carta: blip limpo que sobe + leve brilho por cima
+  // Clique = gota d'água profunda estilo "caverna/poço": pitch bem grave que
+  // despenca + eco (delay com realimentação) que cria a reverberação do poço.
   function playFlipSound() {
-    playBeep({
-      freq: 520,
-      freqEnd: 880,
-      duration: 0.085,
-      type: "sine",
-      volume: 0.16,
-      attack: 0.003,
-      filterFreq: 4200
-    });
-    playBeep({
-      freq: 1500,
-      freqEnd: 2000,
-      duration: 0.05,
-      type: "triangle",
-      volume: 0.045,
-      attack: 0.002
-    });
+    if (!soundEnabled) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      try { ctx.resume(); } catch (e) {}
+    }
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    // pitch bem grave: estalo curto p/ cima e despenca fundo (gota num poço)
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.03);
+    osc.frequency.exponentialRampToValueAtTime(78, now + 0.30);
+
+    // filtro grave e ressonante → timbre profundo
+    filter.type = "lowpass";
+    filter.Q.value = 9;
+    filter.frequency.setValueAtTime(320, now);
+    filter.frequency.exponentialRampToValueAtTime(1100, now + 0.04);
+    filter.frequency.exponentialRampToValueAtTime(200, now + 0.32);
+
+    // envelope: ataque instantâneo + decaimento longo
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.32, now + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.40);
+
+    // eco de poço: linha de delay com realimentação (reverberação caverna)
+    const delay = ctx.createDelay(1.0);
+    delay.delayTime.value = 0.15;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.16;   // menos realimentação = menos repetições do eco
+    const wet = ctx.createGain();
+    wet.gain.value = 0.42;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);   // som direto (seco)
+    gain.connect(delay);             // manda p/ o eco
+    delay.connect(feedback);
+    feedback.connect(delay);         // realimentação = ecos repetidos
+    delay.connect(wet);
+    wet.connect(ctx.destination);    // ecos (molhado)
+
+    osc.start(now);
+    osc.stop(now + 0.42);
+    // encerra a cauda do eco para liberar os nós
+    feedback.gain.setValueAtTime(0.16, now + 0.42);
+    feedback.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
   }
 
   function playMatchSound() {
