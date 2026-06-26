@@ -1297,8 +1297,8 @@
     if (!soundEnabled || masterVolume <= 0) return 0;
     return Math.pow(masterVolume, 2.5);
   }
-  // Música da vitória toca um pouco mais baixa que os efeitos (90% do nível).
-  const END_SOUND_FACTOR = 0.9;
+  // Música da vitória toca um pouco mais baixa que os efeitos (80% do nível).
+  const END_SOUND_FACTOR = 0.8;
   function endGainFor() {
     return gainFor() * END_SOUND_FACTOR;
   }
