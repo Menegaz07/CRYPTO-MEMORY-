@@ -258,6 +258,7 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
+      overflow: hidden;
       box-shadow: 0 12px 32px rgba(15, 23, 42, 0.95);
     }
 
@@ -296,6 +297,7 @@
       margin-top: 4px;
       width: 54px;
       height: 54px;
+      flex: 0 0 auto;   /* nunca encolher: evita o logo virar um "tracinho" */
       border-radius: 999px;
       background: rgba(15, 23, 42, 0.95);
       display: flex;
@@ -442,17 +444,21 @@
       }
       .board-section { padding: 10px; }
       .game-board { gap: 8px; }
-      /* cartas um pouco menos altas para caber mais na tela */
-      .card { padding-top: 122%; }
+      /* cartas mais altas no celular para o logo caber junto do preço */
+      .card { padding-top: 140%; }
+      .card-front { padding: 5px; gap: 2px; }
       .card-name { font-size: 0.72rem; }
-      .card-logo-big { width: 46px; height: 46px; }
+      .card-symbol { font-size: 0.64rem; }
+      .card-price { font-size: 0.66rem; }
+      .card-logo-big { width: 44px; height: 44px; margin-top: 2px; }
       .info-panel { padding: 12px; }
     }
 
     /* Telas bem estreitas: cartas ainda menores e textos compactos */
     @media (max-width: 380px) {
+      .card { padding-top: 146%; }
       .card-name { font-size: 0.66rem; }
-      .card-symbol, .card-price { font-size: 0.62rem; }
+      .card-symbol, .card-price { font-size: 0.6rem; }
       .card-logo-big { width: 40px; height: 40px; }
       .card-footer { font-size: 0.56rem; }
     }
