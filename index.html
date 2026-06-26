@@ -194,6 +194,7 @@
     .card-inner {
       position: absolute;
       inset: 0;
+      -webkit-transform-style: preserve-3d;
       transform-style: preserve-3d;
       transition: transform 0.35s ease, box-shadow 0.35s ease;
       border-radius: 14px;
@@ -201,6 +202,7 @@
 
     .card.flipped .card-inner,
     .card.matched .card-inner {
+      -webkit-transform: rotateY(180deg);
       transform: rotateY(180deg);
     }
 
@@ -212,6 +214,7 @@
     .card-face {
       position: absolute;
       inset: 0;
+      -webkit-backface-visibility: hidden;
       backface-visibility: hidden;
       border-radius: 14px;
     }
@@ -246,6 +249,7 @@
     }
 
     .card-front {
+      -webkit-transform: rotateY(180deg);
       transform: rotateY(180deg);
       background: radial-gradient(circle at top, #020617, #020617 65%, #111827 100%);
       border: 1px solid rgba(148, 163, 184, 0.85);
@@ -306,6 +310,12 @@
       height: 100%;
       object-fit: contain;
       display: block;
+      /* Força a imagem para sua própria camada — corrige o sumiço do logo
+         na face girada (rotateY) no Safari/iOS */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
 
     .card-footer {
