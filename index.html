@@ -1290,6 +1290,13 @@
   }
 
   // === Volume master: todo o Web Audio passa por aqui ===
+  // Curva perceptual: o ouvido é logarítmico, então a posição do slider (0–1)
+  // é elevada a uma potência para dar muito mais resolução no volume baixo.
+  // Sem isso (ganho linear) quase toda a faixa audível fica espremida perto do mute.
+  function gainFor() {
+    if (!soundEnabled || masterVolume <= 0) return 0;
+    return Math.pow(masterVolume, 2.5);
+  }
   let audioMasterGain = null;
   function getMasterGain() {
     const ctx = getAudioCtx();
@@ -1298,7 +1305,7 @@
       audioMasterGain = ctx.createGain();
       audioMasterGain.connect(ctx.destination);
     }
-    audioMasterGain.gain.value = soundEnabled ? masterVolume : 0;
+    audioMasterGain.gain.value = gainFor();
     return audioMasterGain;
   }
   // === Tema da Vitória roteado pelo Web Audio (necessário p/ controlar volume no iOS) ===
@@ -1320,15 +1327,15 @@
         endSoundGain = null; // fallback: usa o .volume do elemento (desktop)
       }
     }
-    if (endSoundGain) endSoundGain.gain.value = soundEnabled ? masterVolume : 0;
+    if (endSoundGain) endSoundGain.gain.value = gainFor();
     return endSoundGain;
   }
   function applyMasterVolume() {
-    if (audioMasterGain) audioMasterGain.gain.value = soundEnabled ? masterVolume : 0;
+    if (audioMasterGain) audioMasterGain.gain.value = gainFor();
     if (endSoundGain) {
-      endSoundGain.gain.value = soundEnabled ? masterVolume : 0;
+      endSoundGain.gain.value = gainFor();
     } else if (typeof endSoundEl !== "undefined" && endSoundEl) {
-      endSoundEl.volume = soundEnabled ? masterVolume : 0;
+      endSoundEl.volume = gainFor();
     }
   }
   function volumeIcon() {
@@ -1541,10 +1548,10 @@ function playSennaClip() {
     if (ctx && ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
     const eg = setupEndSoundChain();
     if (eg) {
-      eg.gain.value = soundEnabled ? masterVolume : 0;
+      eg.gain.value = gainFor();
       endSoundEl.volume = 1;
     } else {
-      endSoundEl.volume = soundEnabled ? masterVolume : 0;
+      endSoundEl.volume = gainFor();
     }
 
     const playPromise = endSoundEl.play();
