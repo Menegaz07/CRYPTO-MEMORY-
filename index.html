@@ -580,24 +580,26 @@
     /* Confete de vitória */
     .confetti-piece {
       position: fixed;
-      top: -12px;
-      width: 9px;
-      height: 14px;
+      top: -16px;
+      left: 0;
+      width: 10px;
+      height: 16px;
       border-radius: 2px;
-      z-index: 9999;
+      z-index: 99999;
       pointer-events: none;
       will-change: transform, opacity;
       animation: confettiFall linear forwards;
     }
 
     @keyframes confettiFall {
-      0%   { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
-      100% { transform: translateY(105vh) rotateZ(720deg); opacity: 0.9; }
+      0%   { transform: translate3d(0, -20px, 0) rotateZ(0deg); opacity: 1; }
+      10%  { opacity: 1; }
+      100% { transform: translate3d(var(--drift, 0px), 105vh, 0) rotateZ(720deg); opacity: 0.95; }
     }
 
+    /* Mesmo com "movimento reduzido" mantemos a comemoração (confete) */
     @media (prefers-reduced-motion: reduce) {
       .card, .card-inner, .card.matched { animation: none !important; transition: none !important; }
-      .confetti-piece { display: none; }
     }
 
   </style>
@@ -1256,9 +1258,12 @@
 
   async function playBeep({
     freq = 800,
+    freqEnd = null,        // glissando até esta frequência (opcional)
     duration = 0.12,
     type = "sine",
-    volume = 0.2
+    volume = 0.2,
+    attack = 0.005,        // tempo de subida (evita estalo)
+    filterFreq = null      // lowpass opcional p/ suavizar/aquecer
   }) {
     if (!soundEnabled) return;
     const ctx = getAudioCtx();
@@ -1270,23 +1275,56 @@
       } catch (e) {}
     }
 
+    const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.value = volume;
+    osc.frequency.setValueAtTime(freq, now);
+    if (freqEnd != null) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), now + duration);
+    }
 
-    osc.connect(gain);
+    let node = osc;
+    if (filterFreq != null) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = filterFreq;
+      osc.connect(filter);
+      node = filter;
+    }
+    node.connect(gain);
     gain.connect(ctx.destination);
 
-    const now = ctx.currentTime;
+    // Envelope suave: ataque rápido + decaimento exponencial (sem clique seco)
+    const rel = Math.max(0.02, duration - attack);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + attack + rel);
+
     osc.start(now);
-    osc.stop(now + duration);
+    osc.stop(now + attack + rel + 0.03);
   }
 
+  // Clique moderno ao virar a carta: blip limpo que sobe + leve brilho por cima
   function playFlipSound() {
-    playBeep({ freq: 950, duration: 0.06, type: "triangle", volume: 0.25 });
+    playBeep({
+      freq: 520,
+      freqEnd: 880,
+      duration: 0.085,
+      type: "sine",
+      volume: 0.16,
+      attack: 0.003,
+      filterFreq: 4200
+    });
+    playBeep({
+      freq: 1500,
+      freqEnd: 2000,
+      duration: 0.05,
+      type: "triangle",
+      volume: 0.045,
+      attack: 0.002
+    });
   }
 
   function playMatchSound() {
@@ -1657,19 +1695,24 @@ function updateSoundButton() {
   }
 
   function spawnConfetti() {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return;
-    }
-    const colors = ["#38bdf8", "#a855f7", "#22c55e", "#fbbf24", "#f97373"];
-    for (let i = 0; i < 60; i++) {
+    const colors = ["#38bdf8", "#a855f7", "#22c55e", "#fbbf24", "#f97373", "#ffffff"];
+    const n = 90;
+    for (let i = 0; i < n; i++) {
       const piece = document.createElement("div");
       piece.className = "confetti-piece";
-      piece.style.left = (5 + Math.random() * 90) + "vw";
+      piece.style.left = (Math.random() * 100) + "vw";
       piece.style.background = colors[i % colors.length];
-      piece.style.animationDuration = (2.2 + Math.random() * 1.8) + "s";
-      piece.style.animationDelay = (Math.random() * 0.4) + "s";
+      // tamanho variado
+      const w = 7 + Math.random() * 7;
+      piece.style.width = w + "px";
+      piece.style.height = (w * 1.6) + "px";
+      // deriva horizontal e queda com tempos variados
+      piece.style.setProperty("--drift", (Math.random() * 140 - 70) + "px");
+      const dur = 2.4 + Math.random() * 2.4;
+      piece.style.animationDuration = dur + "s";
+      piece.style.animationDelay = (Math.random() * 0.5) + "s";
       document.body.appendChild(piece);
-      setTimeout(() => piece.remove(), 4600);
+      setTimeout(() => piece.remove(), (dur + 0.8) * 1000);
     }
   }
 
